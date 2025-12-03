@@ -368,6 +368,28 @@ async def enviar_info(update: Update):
         reply_markup=InlineKeyboardMarkup(keyboard) if keyboard else None
     )
 
+    # Totais por pessoa
+tot_leo = 0
+tot_lissa = 0
+tot_nosso = 0
+
+for gasto in data["gastos"]:
+    valor = gasto.get("parcela_valor") if gasto["categoria"] in ["virtual", "compras"] else gasto.get("valor", 0)
+
+    if gasto.get("quem") == "Leonardo":
+        tot_leo += valor
+    elif gasto.get("quem") == "Lissa":
+        tot_lissa += valor
+    elif gasto.get("quem") == "Nosso":
+        tot_nosso += valor
+
+msg += (
+    f"\n🧮 *TOTAL POR PESSOA*\n"
+    f"• *LEONARDO:* R$ {tot_leo:.2f}\n"
+    f"• *LISSA:* R$ {tot_lissa:.2f}\n"
+    f"• *NOSSO:* R$ {tot_nosso:.2f}\n"
+)
+
 # ----------------------
 # Ajuda
 # ----------------------
@@ -427,6 +449,28 @@ async def fechamento(update: Update):
         resumo, parse_mode="Markdown",
         reply_markup=InlineKeyboardMarkup(keyboard)
     )
+    # Totais por pessoa
+tot_leo = 0
+tot_lissa = 0
+tot_nosso = 0
+
+for gasto in data["gastos"]:
+    valor = gasto.get("parcela_valor") if gasto["categoria"] in ["virtual", "compras"] else gasto.get("valor", 0)
+
+    if gasto.get("quem") == "Leonardo":
+        tot_leo += valor
+    elif gasto.get("quem") == "Lissa":
+        tot_lissa += valor
+    elif gasto.get("quem") == "Nosso":
+        tot_nosso += valor
+
+resumo += (
+    f"\n🧮 *TOTAL POR PESSOA*\n"
+    f"• *LEONARDO:* R$ {tot_leo:.2f}\n"
+    f"• *LISSA:* R$ {tot_lissa:.2f}\n"
+    f"• *NOSSO:* R$ {tot_nosso:.2f}\n"
+)
+
 
 # ----------------------
 # Main
