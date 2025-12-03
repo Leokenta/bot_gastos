@@ -59,7 +59,11 @@ def atualizar_parcelas():
 
     data["gastos"] = [
         g for g in data["gastos"]
-        if g.get("categoria") not in ["virtual", "compras"] or g.get("parcelas_restantes", 1) > 0
+        if (
+            g.get("categoria") == "fixo"
+            or g.get("categoria") in ["virtual", "compras"]
+            or g.get("parcelas_restantes", 1) > 0
+        )
     ]
 
     save_data(data)
@@ -111,7 +115,6 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         quem = {"quem_lissa": "Lissa", "quem_leonardo": "Leonardo", "quem_nosso": "Nosso"}[query.data]
         estado["quem"] = quem
 
-        # Agora mostrar categorias
         keyboard = [
             [InlineKeyboardButton(nome, callback_data=cat)]
             for cat, nome in CATEGORIAS.items()
@@ -130,12 +133,17 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await query.message.reply_text("Fechamento cancelado.")
         elif query.data == "fechar_sim":
             for gasto in data["gastos"]:
-                if gasto.get("categoria") in ["virtual", "compras"] and gasto.get("parcelas_restantes", 0) > 0:
+                if gasto.get("categoria") in ["virtual", "compras"] and gasto.get("parcelas_restantes"]:
+
                     gasto["parcelas_restantes"] -= 1
 
             data["gastos"] = [
                 g for g in data["gastos"]
-                if g.get("categoria") in ["virtual", "compras"] or g.get("parcelas_restantes", 0) > 0
+                if (
+                    g.get("categoria") == "fixo"
+                    or g.get("categoria") in ["virtual", "compras"]
+                    or g.get("parcelas_restantes", 0) > 0
+                )
             ]
 
             save_data(data)
@@ -155,12 +163,12 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # Excluir
     if query.data.startswith("excluir_"):
         idx = int(query.data.split("_")[1])
-        gasto = data["gastos"].pop(idx)
+        data["gastos"].pop(idx)
         save_data(data)
         await query.message.reply_text(f"Gasto excluído com sucesso!")
         return
 
-    # Categoria
+    # Categoria escolhida
     if not estado or estado.get("valor") is None or estado.get("quem") is None:
         await query.message.reply_text("Erro: valor ou quem gastou não definido.")
         return
@@ -168,7 +176,12 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     categoria = query.data
     estado["categoria"] = categoria
 
-    # Parcelados
+    # Gasto fixo → pedir nome
+    if categoria == "fixo":
+        await query.message.reply_text("Digite o nome do gasto fixo:")
+        return
+
+    # Gastos parcelados
     if categoria in ["virtual", "compras"]:
         await query.message.reply_text(f"Digite o nome do produto para {CATEGORIAS[categoria]}:")
         return
@@ -196,7 +209,7 @@ async def message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     estado = user_state.get(user_id)
     data = load_data()
 
-    # Comandos
+    # Comandos básicos
     if text.lower() == "info":
         await enviar_info(update)
         return
@@ -214,13 +227,16 @@ async def message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await fechamento(update)
         return
 
-    # Editar
+    # Editar valor
     if estado and estado.get("edit") is not None:
         idx = estado["edit"]
         try:
             novo_valor = float(text.replace(",", ".")) if text else 0
             data["gastos"][idx]["valor_total"] = novo_valor
-            data["gastos"][idx]["parcela_valor"] = novo_valor / max(data["gastos"][idx].get("parcelas_iniciais", 1), 1)
+
+            if data["gastos"][idx].get("parcelas_iniciais"):
+                data["gastos"][idx]["parcela_valor"] = novo_valor / data["gastos"][idx]["parcelas_iniciais"]
+
             save_data(data)
             await update.message.reply_text("Gasto atualizado com sucesso!")
         except:
@@ -228,13 +244,35 @@ async def message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         user_state.pop(user_id)
         return
 
+    # Nome do gasto fixo
+    if estado and estado.get("categoria") == "fixo" and not estado.get("produto"):
+        estado["produto"] = text.upper()
+
+        data["gastos"].append({
+            "quem": estado["quem"],
+            "produto": estado["produto"],
+            "categoria": "fixo",
+            "valor": estado["valor"],
+            "fixo_permanente": True,
+            "data": str(datetime.now().date())
+        })
+        save_data(data)
+
+        await update.message.reply_text(
+            f"💼 Gasto Fixo Registrado!\n👤 Quem: {estado['quem']}\n🔠 Nome: *{estado['produto']}*\nValor: R$ {estado['valor']:.2f}",
+            parse_mode="Markdown"
+        )
+
+        user_state.pop(user_id)
+        return
+
     # Produto parcelado
     if estado and estado.get("categoria") in ["virtual", "compras"] and not estado.get("produto"):
-        estado["produto"] = text
+        estado["produto"] = text.upper()
         await update.message.reply_text("Agora digite o número de parcelas:")
         return
 
-    # Parcelas
+    # Número de parcelas
     if estado and estado.get("categoria") in ["virtual", "compras"] and estado.get("produto") and not estado.get("parcelas"):
         try:
             parcelas = int(text)
@@ -298,19 +336,19 @@ async def enviar_info(update: Update):
     total_geral = 0
 
     for idx, gasto in enumerate(data["gastos"]):
-        quem = gasto.get("quem", "—")
+        nome = gasto.get("produto", "").upper()
 
         if gasto["categoria"] in ["virtual", "compras"]:
             parcelas = gasto.get("parcelas_restantes", 0)
             msg += (
-                f"{idx+1}. 👤 *{quem}* — {gasto.get('produto','')} "
-                f"- {CATEGORIAS[gasto['categoria']]} - R$ {gasto['parcela_valor']:.2f} (parcela do mês) "
-                f"({parcelas} restantes)\n"
+                f"{idx+1}. 👤 *{gasto.get('quem','—')}* — *{nome}* "
+                f"- {CATEGORIAS[gasto['categoria']]} - R$ {gasto['parcela_valor']:.2f} "
+                f"(parcela do mês) ({parcelas} restantes)\n"
             )
             total_geral += gasto.get("parcela_valor", 0)
         else:
             msg += (
-                f"{idx+1}. 👤 *{quem}* — {gasto.get('produto','')} "
+                f"{idx+1}. 👤 *{gasto.get('quem','—')}* — *{nome}* "
                 f"- {CATEGORIAS[gasto['categoria']]} - R$ {gasto.get('valor',0):.2f}\n"
             )
             total_geral += gasto.get("valor", 0)
@@ -338,13 +376,13 @@ async def enviar_ajuda(update: Update):
         "- Digite um valor → o bot pergunta quem gastou\n"
         "- Depois pergunta a categoria\n"
         "- info → ver gastos detalhados\n"
-       "- gerar resumo → baixar planilha Excel\n"
+        "- gerar resumo → baixar planilha Excel\n"
         "- fechamento → finalizar mês e atualizar parcelas\n"
     )
     await update.message.reply_text(msg, parse_mode="Markdown")
 
 # ----------------------
-# Fechamento (CORRIGIDO)
+# Fechamento
 # ----------------------
 async def fechamento(update: Update):
     atualizar_parcelas()
@@ -358,13 +396,14 @@ async def fechamento(update: Update):
     total_mes = 0
 
     for gasto in data["gastos"]:
+        nome = gasto.get("produto", "").upper()
         quem = gasto.get("quem", "—")
 
         if gasto["categoria"] in ["virtual", "compras"]:
             parcela = gasto.get("parcela_valor", 0)
             total_mes += parcela
             resumo += (
-                f"👤 {quem} — {gasto.get('produto','')} - "
+                f"👤 {quem} — *{nome}* - "
                 f"{CATEGORIAS[gasto['categoria']]} - Parcela do mês: R$ {parcela:.2f} "
                 f"({gasto.get('parcelas_restantes',0)} restantes)\n"
             )
@@ -372,7 +411,7 @@ async def fechamento(update: Update):
             valor = gasto.get("valor", 0)
             total_mes += valor
             resumo += (
-                f"👤 {quem} — {gasto.get('produto','')} - "
+                f"👤 {quem} — *{nome}* - "
                 f"{CATEGORIAS[gasto['categoria']]} - R$ {valor:.2f}\n"
             )
 
