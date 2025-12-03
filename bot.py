@@ -87,7 +87,7 @@ def gerar_planilha():
             gasto.get("valor_total", gasto.get("valor", 0)),
             gasto.get("parcela_valor", ""),
             gasto.get("parcelas_restantes", ""),
-            gasto.get("ultimo_update", gasto.get("data", ""))
+            gasto.get("ultimo_update", gasto.get("data", "")),
         ])
 
     caminho = "resumo_gastos.xlsx"
@@ -355,7 +355,7 @@ async def enviar_info(update: Update):
     msg += f"\n💰 *TOTAL DO MÊS:* R$ {total_geral:.2f}\n"
 
     # ←──────────────────────────────────────────
-    # TOTAL POR PESSOA (AGORA NO LUGAR CERTO)
+    # TOTAL POR PESSOA
     # ───────────────────────────────────────────→
 
     tot_leo = 0
@@ -419,7 +419,7 @@ async def fechamento(update: Update):
     resumo = "📌 *FECHAMENTO DO MÊS*\n\n"
     total_mes = 0
 
-    for gasto in data["gastos"]]:
+    for gasto in data["gastos"]:
         nome = gasto.get("produto", "").upper()
         quem = gasto.get("quem", "—")
 
