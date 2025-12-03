@@ -111,8 +111,8 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     data = load_data()
 
     # Seleção de quem gastou
-    if query.data in ["quem_lissa", "quem_leonardo", "quem_nosso"]:
-        quem = {"quem_lissa": "Lissa", "quem_leonardo": "Leonardo", "quem_nosso": "Nosso"}[query.data]
+    if query.data in ["quem_lissa", "quem_leo", "quem_nosso"]:
+        quem = {"quem_lissa": "Lissa", "quem_leo": "leo", "quem_nosso": "Nosso"}[query.data]
         estado["quem"] = quem
 
         keyboard = [
@@ -313,7 +313,7 @@ async def message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         keyboard = [
             [
                 InlineKeyboardButton("Lissa", callback_data="quem_lissa"),
-                InlineKeyboardButton("Leonardo", callback_data="quem_leonardo"),
+                InlineKeyboardButton("leo", callback_data="quem_leo"),
                 InlineKeyboardButton("Nosso", callback_data="quem_nosso")
             ]
         ]
