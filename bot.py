@@ -133,7 +133,8 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await query.message.reply_text("Fechamento cancelado.")
         elif query.data == "fechar_sim":
             for gasto in data["gastos"]:
-                if gasto.get("categoria") in ["virtual", "compras"] and gasto.get("parcelas_restantes"]:
+                if gasto.get("categoria") in ["virtual", "compras"] and gasto.get("parcelas_restantes"):
+
 
                     gasto["parcelas_restantes"] -= 1
 
