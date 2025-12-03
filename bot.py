@@ -271,7 +271,6 @@ async def message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         valor = float(text.replace(",", "."))
         user_state[user_id] = {"valor": valor}
 
-        # 📌 ETAPA NOVA — BOTÕES DE QUEM GASTOU
         keyboard = [
             [
                 InlineKeyboardButton("Lissa", callback_data="quem_lissa"),
@@ -305,18 +304,18 @@ async def enviar_info(update: Update):
             parcelas = gasto.get("parcelas_restantes", 0)
             msg += (
                 f"{idx+1}. 👤 *{quem}* — {gasto.get('produto','')} "
-                f"- {CATEGORIAS[gasto['categoria']]} - R$ {gasto['valor_total']:.2f} "
-                f"({parcelas} parcelas restantes)\n"
+                f"- {CATEGORIAS[gasto['categoria']]} - R$ {gasto['parcela_valor']:.2f} (parcela do mês) "
+                f"({parcelas} restantes)\n"
             )
+            total_geral += gasto.get("parcela_valor", 0)
         else:
             msg += (
                 f"{idx+1}. 👤 *{quem}* — {gasto.get('produto','')} "
                 f"- {CATEGORIAS[gasto['categoria']]} - R$ {gasto.get('valor',0):.2f}\n"
             )
+            total_geral += gasto.get("valor", 0)
 
-        total_geral += gasto.get("valor_total", gasto.get("valor", 0))
-
-    msg += f"\n💰 *TOTAL GERAL:* R$ {total_geral:.2f}"
+    msg += f"\n💰 *TOTAL DO MÊS:* R$ {total_geral:.2f}"
 
     keyboard = []
     for idx, gasto in enumerate(data["gastos"]):
@@ -339,13 +338,13 @@ async def enviar_ajuda(update: Update):
         "- Digite um valor → o bot pergunta quem gastou\n"
         "- Depois pergunta a categoria\n"
         "- info → ver gastos detalhados\n"
-        "- gerar resumo → baixar planilha Excel\n"
+       "- gerar resumo → baixar planilha Excel\n"
         "- fechamento → finalizar mês e atualizar parcelas\n"
     )
     await update.message.reply_text(msg, parse_mode="Markdown")
 
 # ----------------------
-# Fechamento
+# Fechamento (CORRIGIDO)
 # ----------------------
 async def fechamento(update: Update):
     atualizar_parcelas()
@@ -356,20 +355,28 @@ async def fechamento(update: Update):
         return
 
     resumo = "📌 *FECHAMENTO DO MÊS*\n\n"
-    total_geral = 0
+    total_mes = 0
 
     for gasto in data["gastos"]:
         quem = gasto.get("quem", "—")
-        parcelas = gasto.get("parcelas_restantes", "")
 
-        linha = f"👤 {quem} — {gasto.get('produto','')} - {CATEGORIAS[gasto['categoria']]} - R$ {gasto.get('valor_total', gasto.get('valor',0)):.2f}"
         if gasto["categoria"] in ["virtual", "compras"]:
-            linha += f" ({parcelas} parcelas restantes)"
-        resumo += linha + "\n"
+            parcela = gasto.get("parcela_valor", 0)
+            total_mes += parcela
+            resumo += (
+                f"👤 {quem} — {gasto.get('produto','')} - "
+                f"{CATEGORIAS[gasto['categoria']]} - Parcela do mês: R$ {parcela:.2f} "
+                f"({gasto.get('parcelas_restantes',0)} restantes)\n"
+            )
+        else:
+            valor = gasto.get("valor", 0)
+            total_mes += valor
+            resumo += (
+                f"👤 {quem} — {gasto.get('produto','')} - "
+                f"{CATEGORIAS[gasto['categoria']]} - R$ {valor:.2f}\n"
+            )
 
-        total_geral += gasto.get("valor_total", gasto.get("valor", 0))
-
-    resumo += f"\n💰 *TOTAL GERAL:* R$ {total_geral:.2f}\n"
+    resumo += f"\n💰 *TOTAL DO MÊS:* R$ {total_mes:.2f}\n"
 
     keyboard = [
         [InlineKeyboardButton("Sim", callback_data="fechar_sim"),
