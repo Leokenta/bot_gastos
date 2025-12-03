@@ -373,7 +373,7 @@ async def enviar_info(update: Update):
             tot_nosso += valor
 
     msg += (
-        f"\n🧮 *TOTAL POR PESSOA*\n"
+        f"\n🧮 *TOTAL*\n"
         f"• *LEONARDO:* R$ {tot_leo:.2f}\n"
         f"• *LISSA:* R$ {tot_lissa:.2f}\n"
         f"• *NOSSO:* R$ {tot_nosso:.2f}\n"
@@ -460,7 +460,7 @@ async def fechamento(update: Update):
             tot_nosso += valor
 
     resumo += (
-        f"\n🧮 *TOTAL POR PESSOA*\n"
+        f"\n🧮 *TOTAL*\n"
         f"• *LEONARDO:* R$ {tot_leo:.2f}\n"
         f"• *LISSA:* R$ {tot_lissa:.2f}\n"
         f"• *NOSSO:* R$ {tot_nosso:.2f}\n"
