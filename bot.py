@@ -111,7 +111,7 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     # Seleção de quem gastou
     if query.data in ["quem_lissa", "quem_leo", "quem_nosso"]:
-        quem = {"quem_lissa": "Lissa", "quem_leo": "Leonardo", "quem_nosso": "Nosso"}[query.data]
+        quem = {"quem_lissa": "Lissa", "quem_leo": "leo", "quem_nosso": "Nosso"}[query.data]
         # garante que exista dicionário de estado
         if not estado:
             estado = {}
@@ -346,7 +346,7 @@ async def message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         keyboard = [
             [
                 InlineKeyboardButton("Lissa", callback_data="quem_lissa"),
-                InlineKeyboardButton("Leonardo", callback_data="quem_leo"),
+                InlineKeyboardButton("leo", callback_data="quem_leo"),
                 InlineKeyboardButton("Nosso", callback_data="quem_nosso")
             ]
         ]
@@ -400,7 +400,7 @@ async def enviar_info(update: Update):
     for gasto in data["gastos"]:
         valor = gasto.get("parcela_valor") if gasto["categoria"] in ["virtual", "compras"] else gasto.get("valor", 0)
 
-        if gasto.get("quem") == "Leonardo":
+        if gasto.get("quem") == "leo":
             tot_leo += valor
         elif gasto.get("quem") == "Lissa":
             tot_lissa += valor
@@ -409,7 +409,7 @@ async def enviar_info(update: Update):
 
     msg += (
         f"\n🧮 *TOTAL POR PESSOA*\n"
-        f"• *LEONARDO:* R$ {tot_leo:.2f}\n"
+        f"• *leo:* R$ {tot_leo:.2f}\n"
         f"• *LISSA:* R$ {tot_lissa:.2f}\n"
         f"• *NOSSO:* R$ {tot_nosso:.2f}\n"
     )
@@ -486,7 +486,7 @@ async def fechamento(update: Update):
     for gasto in data["gastos"]:
         valor = gasto.get("parcela_valor") if gasto["categoria"] in ["virtual", "compras"] else gasto.get("valor", 0)
 
-        if gasto.get("quem") == "Leonardo":
+        if gasto.get("quem") == "leo":
             tot_leo += valor
         elif gasto.get("quem") == "Lissa":
             tot_lissa += valor
@@ -495,7 +495,7 @@ async def fechamento(update: Update):
 
     resumo += (
         f"\n🧮 *TOTAL POR PESSOA*\n"
-        f"• *LEONARDO:* R$ {tot_leo:.2f}\n"
+        f"• *leo:* R$ {tot_leo:.2f}\n"
         f"• *LISSA:* R$ {tot_lissa:.2f}\n"
         f"• *NOSSO:* R$ {tot_nosso:.2f}\n"
     )
