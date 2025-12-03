@@ -112,7 +112,7 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     # Seleção de quem gastou
     if query.data in ["quem_lissa", "quem_leo", "quem_nosso"]:
-        quem = {"quem_lissa": "Lissa", "quem_leo": "leo", "quem_nosso": "Nosso"}[query.data]
+        quem = {"quem_lissa": "Lissa", "quem_leo": "Leonardo", "quem_nosso": "Nosso"}[query.data]
         estado["quem"] = quem
 
         keyboard = [
@@ -134,8 +134,6 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         elif query.data == "fechar_sim":
             for gasto in data["gastos"]:
                 if gasto.get("categoria") in ["virtual", "compras"] and gasto.get("parcelas_restantes"):
-
-
                     gasto["parcelas_restantes"] -= 1
 
             data["gastos"] = [
@@ -313,7 +311,7 @@ async def message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         keyboard = [
             [
                 InlineKeyboardButton("Lissa", callback_data="quem_lissa"),
-                InlineKeyboardButton("leo", callback_data="quem_leo"),
+                InlineKeyboardButton("Leonardo", callback_data="quem_leo"),
                 InlineKeyboardButton("Nosso", callback_data="quem_nosso")
             ]
         ]
@@ -354,7 +352,32 @@ async def enviar_info(update: Update):
             )
             total_geral += gasto.get("valor", 0)
 
-    msg += f"\n💰 *TOTAL DO MÊS:* R$ {total_geral:.2f}"
+    msg += f"\n💰 *TOTAL DO MÊS:* R$ {total_geral:.2f}\n"
+
+    # ←──────────────────────────────────────────
+    # TOTAL POR PESSOA (AGORA NO LUGAR CERTO)
+    # ───────────────────────────────────────────→
+
+    tot_leo = 0
+    tot_lissa = 0
+    tot_nosso = 0
+
+    for gasto in data["gastos"]:
+        valor = gasto.get("parcela_valor") if gasto["categoria"] in ["virtual", "compras"] else gasto.get("valor", 0)
+
+        if gasto.get("quem") == "Leonardo":
+            tot_leo += valor
+        elif gasto.get("quem") == "Lissa":
+            tot_lissa += valor
+        elif gasto.get("quem") == "Nosso":
+            tot_nosso += valor
+
+    msg += (
+        f"\n🧮 *TOTAL POR PESSOA*\n"
+        f"• *LEONARDO:* R$ {tot_leo:.2f}\n"
+        f"• *LISSA:* R$ {tot_lissa:.2f}\n"
+        f"• *NOSSO:* R$ {tot_nosso:.2f}\n"
+    )
 
     keyboard = []
     for idx, gasto in enumerate(data["gastos"]):
@@ -367,28 +390,6 @@ async def enviar_info(update: Update):
         msg, parse_mode="Markdown",
         reply_markup=InlineKeyboardMarkup(keyboard) if keyboard else None
     )
-
-    # Totais por pessoa
-tot_leo = 0
-tot_lissa = 0
-tot_nosso = 0
-
-for gasto in data["gastos"]:
-    valor = gasto.get("parcela_valor") if gasto["categoria"] in ["virtual", "compras"] else gasto.get("valor", 0)
-
-    if gasto.get("quem") == "Leonardo":
-        tot_leo += valor
-    elif gasto.get("quem") == "Lissa":
-        tot_lissa += valor
-    elif gasto.get("quem") == "Nosso":
-        tot_nosso += valor
-
-msg += (
-    f"\n🧮 *TOTAL POR PESSOA*\n"
-    f"• *LEONARDO:* R$ {tot_leo:.2f}\n"
-    f"• *LISSA:* R$ {tot_lissa:.2f}\n"
-    f"• *NOSSO:* R$ {tot_nosso:.2f}\n"
-)
 
 # ----------------------
 # Ajuda
@@ -418,7 +419,7 @@ async def fechamento(update: Update):
     resumo = "📌 *FECHAMENTO DO MÊS*\n\n"
     total_mes = 0
 
-    for gasto in data["gastos"]:
+    for gasto in data["gastos"]]:
         nome = gasto.get("produto", "").upper()
         quem = gasto.get("quem", "—")
 
@@ -440,6 +441,31 @@ async def fechamento(update: Update):
 
     resumo += f"\n💰 *TOTAL DO MÊS:* R$ {total_mes:.2f}\n"
 
+    # ←──────────────────────────────────────────
+    # TOTAL POR PESSOA NO FECHAMENTO
+    # ───────────────────────────────────────────→
+
+    tot_leo = 0
+    tot_lissa = 0
+    tot_nosso = 0
+
+    for gasto in data["gastos"]:
+        valor = gasto.get("parcela_valor") if gasto["categoria"] in ["virtual", "compras"] else gasto.get("valor", 0)
+
+        if gasto.get("quem") == "Leonardo":
+            tot_leo += valor
+        elif gasto.get("quem") == "Lissa":
+            tot_lissa += valor
+        elif gasto.get("quem") == "Nosso":
+            tot_nosso += valor
+
+    resumo += (
+        f"\n🧮 *TOTAL POR PESSOA*\n"
+        f"• *LEONARDO:* R$ {tot_leo:.2f}\n"
+        f"• *LISSA:* R$ {tot_lissa:.2f}\n"
+        f"• *NOSSO:* R$ {tot_nosso:.2f}\n"
+    )
+
     keyboard = [
         [InlineKeyboardButton("Sim", callback_data="fechar_sim"),
          InlineKeyboardButton("Não", callback_data="fechar_nao")]
@@ -449,28 +475,6 @@ async def fechamento(update: Update):
         resumo, parse_mode="Markdown",
         reply_markup=InlineKeyboardMarkup(keyboard)
     )
-    # Totais por pessoa
-tot_leo = 0
-tot_lissa = 0
-tot_nosso = 0
-
-for gasto in data["gastos"]:
-    valor = gasto.get("parcela_valor") if gasto["categoria"] in ["virtual", "compras"] else gasto.get("valor", 0)
-
-    if gasto.get("quem") == "Leonardo":
-        tot_leo += valor
-    elif gasto.get("quem") == "Lissa":
-        tot_lissa += valor
-    elif gasto.get("quem") == "Nosso":
-        tot_nosso += valor
-
-resumo += (
-    f"\n🧮 *TOTAL POR PESSOA*\n"
-    f"• *LEONARDO:* R$ {tot_leo:.2f}\n"
-    f"• *LISSA:* R$ {tot_lissa:.2f}\n"
-    f"• *NOSSO:* R$ {tot_nosso:.2f}\n"
-)
-
 
 # ----------------------
 # Main
