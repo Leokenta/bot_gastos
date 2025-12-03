@@ -93,7 +93,6 @@ def gerar_planilha():
     caminho = "resumo_gastos.xlsx"
     wb.save(caminho)
     return caminho
-
 # ----------------------
 # Comandos Telegram
 # ----------------------
@@ -113,6 +112,10 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # Seleção de quem gastou
     if query.data in ["quem_lissa", "quem_leo", "quem_nosso"]:
         quem = {"quem_lissa": "Lissa", "quem_leo": "Leonardo", "quem_nosso": "Nosso"}[query.data]
+        # garante que exista dicionário de estado
+        if not estado:
+            estado = {}
+            user_state[user_id] = estado
         estado["quem"] = quem
 
         keyboard = [
@@ -127,7 +130,19 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
         return
 
-    # Fechamento
+    # APAGAR TODO BANCO DE DADOS (confirm action)
+    if query.data == "apagar_tudo":
+        # sobrescreve arquivo com lista vazia
+        with open(DATA_FILE, "w") as f:
+            json.dump({"gastos": []}, f, indent=4)
+        await query.message.reply_text("🚨 Todo o banco de dados foi APAGADO com sucesso!")
+        return
+
+    if query.data == "cancelar_apagar":
+        await query.message.reply_text("Operação cancelada.")
+        return
+
+    # Fechamento (confirm)
     if query.data.startswith("fechar_"):
         if query.data == "fechar_nao":
             await query.message.reply_text("Fechamento cancelado.")
@@ -149,9 +164,13 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await query.message.reply_text("✅ Mês fechado!")
         return
 
-    # Editar
+    # Editar gasto específico (via bot buttons)
     if query.data.startswith("editar_"):
         idx = int(query.data.split("_")[1])
+        data = load_data()  # recarrega
+        if idx < 0 or idx >= len(data["gastos"]):
+            await query.message.reply_text("Índice inválido.")
+            return
         gasto = data["gastos"][idx]
         user_state[user_id] = {"edit": idx}
         await query.message.reply_text(
@@ -159,15 +178,19 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
         return
 
-    # Excluir
+    # Excluir gasto específico (via bot buttons)
     if query.data.startswith("excluir_"):
         idx = int(query.data.split("_")[1])
+        data = load_data()
+        if idx < 0 or idx >= len(data["gastos"]):
+            await query.message.reply_text("Índice inválido.")
+            return
         data["gastos"].pop(idx)
         save_data(data)
-        await query.message.reply_text(f"Gasto excluído com sucesso!")
+        await query.message.reply_text("Gasto excluído com sucesso!")
         return
 
-    # Categoria escolhida
+    # Categoria escolhida (quando usuário escolheu quem e agora escolhe categoria)
     if not estado or estado.get("valor") is None or estado.get("quem") is None:
         await query.message.reply_text("Erro: valor ou quem gastou não definido.")
         return
@@ -185,7 +208,7 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await query.message.reply_text(f"Digite o nome do produto para {CATEGORIAS[categoria]}:")
         return
 
-    # Gasto comum
+    # Gasto comum (categoria normal)
     valor = estado["valor"]
     data["gastos"].append({
         "quem": estado["quem"],
@@ -200,8 +223,7 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         f"Gasto registrado!\n👤 Quem: {estado['quem']}\n💸 Categoria: {CATEGORIAS[categoria]}\nValor: R$ {valor:.2f}"
     )
 
-    user_state.pop(user_id)
-
+    user_state.pop(user_id, None)
 async def message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text = update.message.text
     user_id = update.message.from_user.id
@@ -222,15 +244,28 @@ async def message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_document(open(caminho, "rb"))
         return
 
+    # comando editar (menu) → inclui opção apagar tudo
+    if text.lower() == "editar":
+        keyboard = [
+            [InlineKeyboardButton("❌ Apagar TODO banco de dados", callback_data="apagar_tudo")],
+            [InlineKeyboardButton("Cancelar", callback_data="cancelar_apagar")]
+        ]
+        await update.message.reply_text(
+            "O que deseja editar?",
+            reply_markup=InlineKeyboardMarkup(keyboard)
+        )
+        return
+
     if text.lower() == "fechamento":
         await fechamento(update)
         return
 
-    # Editar valor
+    # Editar valor (resposta ao botão editar_X)
     if estado and estado.get("edit") is not None:
         idx = estado["edit"]
         try:
             novo_valor = float(text.replace(",", ".")) if text else 0
+            data = load_data()
             data["gastos"][idx]["valor_total"] = novo_valor
 
             if data["gastos"][idx].get("parcelas_iniciais"):
@@ -240,10 +275,10 @@ async def message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await update.message.reply_text("Gasto atualizado com sucesso!")
         except:
             await update.message.reply_text("Valor inválido.")
-        user_state.pop(user_id)
+        user_state.pop(user_id, None)
         return
 
-    # Nome do gasto fixo
+    # Nome do gasto fixo (após escolher categoria "fixo")
     if estado and estado.get("categoria") == "fixo" and not estado.get("produto"):
         estado["produto"] = text.upper()
 
@@ -262,16 +297,16 @@ async def message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             parse_mode="Markdown"
         )
 
-        user_state.pop(user_id)
+        user_state.pop(user_id, None)
         return
 
-    # Produto parcelado
+    # Produto parcelado (nome)
     if estado and estado.get("categoria") in ["virtual", "compras"] and not estado.get("produto"):
         estado["produto"] = text.upper()
         await update.message.reply_text("Agora digite o número de parcelas:")
         return
 
-    # Número de parcelas
+    # Número de parcelas (após nome do produto)
     if estado and estado.get("categoria") in ["virtual", "compras"] and estado.get("produto") and not estado.get("parcelas"):
         try:
             parcelas = int(text)
@@ -296,14 +331,14 @@ async def message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 f"💳 Compra Registrada!\n👤 Quem: {estado['quem']}\nProduto: {estado['produto']}\nTotal: R$ {valor_total:.2f}\n{parcelas}x de R$ {valor_parcela:.2f}"
             )
 
-            user_state.pop(user_id)
+            user_state.pop(user_id, None)
             return
 
         except:
             await update.message.reply_text("Digite um número de parcelas válido.")
             return
 
-    # Valor inicial
+    # Valor inicial (primeiro passo)
     try:
         valor = float(text.replace(",", "."))
         user_state[user_id] = {"valor": valor}
@@ -341,7 +376,7 @@ async def enviar_info(update: Update):
             parcelas = gasto.get("parcelas_restantes", 0)
             msg += (
                 f"{idx+1}. 👤 *{gasto.get('quem','—')}* — *{nome}* "
-                f"- {CATEGORIAS[gasto['categoria']]} - R$ {gasto['parcela_valor']:.2f} "
+                f"- {CATEGORIAS[gasto['categoria']]} - R$ {gasto.get('parcela_valor', 0):.2f} "
                 f"(parcela do mês) ({parcelas} restantes)\n"
             )
             total_geral += gasto.get("parcela_valor", 0)
@@ -373,7 +408,7 @@ async def enviar_info(update: Update):
             tot_nosso += valor
 
     msg += (
-        f"\n🧮 *TOTAL*\n"
+        f"\n🧮 *TOTAL POR PESSOA*\n"
         f"• *LEONARDO:* R$ {tot_leo:.2f}\n"
         f"• *LISSA:* R$ {tot_lissa:.2f}\n"
         f"• *NOSSO:* R$ {tot_nosso:.2f}\n"
@@ -404,7 +439,6 @@ async def enviar_ajuda(update: Update):
         "- fechamento → finalizar mês e atualizar parcelas\n"
     )
     await update.message.reply_text(msg, parse_mode="Markdown")
-
 # ----------------------
 # Fechamento
 # ----------------------
@@ -460,7 +494,7 @@ async def fechamento(update: Update):
             tot_nosso += valor
 
     resumo += (
-        f"\n🧮 *TOTAL*\n"
+        f"\n🧮 *TOTAL POR PESSOA*\n"
         f"• *LEONARDO:* R$ {tot_leo:.2f}\n"
         f"• *LISSA:* R$ {tot_lissa:.2f}\n"
         f"• *NOSSO:* R$ {tot_nosso:.2f}\n"
